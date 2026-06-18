@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>双裁判测试仪表盘</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f172a;color:#e2e8f0;font-family:system-ui;min-height:100vh;padding:20px}
+h1{text-align:center;font-size:1.4rem;color:#38bdf8;margin-bottom:5px}
+.sub{text-align:center;color:#64748b;font-size:0.8rem;margin-bottom:12px}
+.controls{text-align:center;margin:12px}
+.btn{background:#38bdf8;color:#0f172a;border:none;padding:12px 30px;border-radius:10px;font-size:1rem;cursor:pointer;font-weight:bold}
+.btn:hover{background:#7dd3fc}.btn:disabled{opacity:0.3;cursor:not-allowed}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;max-width:900px;margin:0 auto}
+.card{background:#1e293b;border-radius:16px;padding:18px;text-align:center;transition:0.3s}
+.card.active{border:2px solid #38bdf8;box-shadow:0 0 20px rgba(56,189,248,0.2)}
+.card h2{font-size:0.95rem}.card .model{font-size:0.7rem;color:#94a3b8;margin-bottom:8px}
+
+.avatar{width:45px;height:60px;margin:6px auto;position:relative}
+.avatar .head{width:20px;height:20px;background:#475569;border-radius:50%;margin:0 auto;transition:0.3s}
+.avatar .head.thinking{background:#fbbf24;animation:bounce 0.4s infinite}
+.avatar .head.pass{background:#22c55e}.avatar .head.fail{background:#ef4444}
+.avatar .body{width:24px;height:24px;background:#334155;border-radius:5px;margin:1px auto 0}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+.score{font-size:2rem;font-weight:bold;margin:6px 0;transition:0.3s}
+.score.pass{color:#22c55e}.score.fail{color:#ef4444}.score.wait{color:#475569}
+
+.bar{background:#334155;border-radius:6px;height:6px;margin:8px 0;overflow:hidden}
+.bar-fill{background:linear-gradient(90deg,#06b6d4,#22c55e);height:100%;border-radius:6px;transition:width 0.3s;width:0%}
+.status{font-size:0.7rem;color:#94a3b8}
+
+.log{background:#1e293b;border-radius:16px;padding:15px;max-width:900px;margin:15px auto;max-height:250px;overflow-y:auto}
+.log h3{font-size:0.85rem;color:#38bdf8;margin-bottom:8px}
+.log-item{display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1e293b;font-size:0.78rem}
+.log-id{color:#38bdf8;min-width:45px}.log-pass{color:#22c55e;font-weight:bold}.log-fail{color:#ef4444;font-weight:bold}.log-review{color:#f59e0b;font-weight:bold}
+
+.summary{max-width:900px;margin:15px auto;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sum-box{background:#1e293b;border-radius:10px;padding:12px;text-align:center}
+.sum-box .num{font-size:1.5rem;font-weight:bold}.sum-box .label{font-size:0.7rem;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<h1>双裁判测试仪表盘</h1>
+<div class="sub">裁判A: DeepSeek(严格) · 裁判B: 千问3-8B(体验) · 实时评分</div>
+
+<div class="controls">
+  <button class="btn" onclick="startTest()" id="btn">开始测试</button>
+  <span id="info" style="margin-left:12px;font-size:0.8rem;color:#94a3b8"></span>
+</div>
+
+<div class="grid">
+  <div class="card" id="cardA">
+    <h2>裁判 A · DeepSeek</h2><div class="model">严格审查 — 偏差就扣分</div>
+    <div class="avatar"><div class="head" id="headA"></div><div class="body"></div></div>
+    <div class="bar"><div class="bar-fill" id="barA"></div></div>
+    <div class="score wait" id="scoreA">—</div><div class="status" id="statusA">等待中</div>
+  </div>
+  <div class="card" id="cardB">
+    <h2>裁判 B · 千问3 8B</h2><div class="model">体验视角 — 客人满意就行</div>
+    <div class="avatar"><div class="head" id="headB"></div><div class="body"></div></div>
+    <div class="bar"><div class="bar-fill" id="barB"></div></div>
+    <div class="score wait" id="scoreB">—</div><div class="status" id="statusB">等待中</div>
+  </div>
+</div>
+
+<div class="log"><h3>实时日志</h3><div id="logList" style="color:#64748b;text-align:center;padding:30px">点击"开始测试"</div></div>
+
+<div class="summary">
+  <div class="sum-box"><div class="num" style="color:#22c55e" id="sPass">0</div><div class="label">双 PASS</div></div>
+  <div class="sum-box"><div class="num" style="color:#ef4444" id="sFail">0</div><div class="label">双 FAIL</div></div>
+  <div class="sum-box"><div class="num" style="color:#f59e0b" id="sReview">0</div><div class="label">需审核</div></div>
+  <div class="sum-box"><div class="num" style="color:#38bdf8" id="sTotal">0/20</div><div class="label">进度</div></div>
+</div>
+
+<script>
+let pass = 0, fail = 0, review = 0, evtSource = null;
+
+function startTest() {
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  btn.textContent = '测试中...';
+
+  // 重置
+  pass = fail = review = 0;
+  document.getElementById('sPass').textContent = '0';
+  document.getElementById('sFail').textContent = '0';
+  document.getElementById('sReview').textContent = '0';
+  document.getElementById('sTotal').textContent = '0/20';
+  document.getElementById('logList').innerHTML = '';
+  document.getElementById('scoreA').textContent = '—';
+  document.getElementById('scoreB').textContent = '—';
+  document.getElementById('scoreA').className = 'score wait';
+  document.getElementById('scoreB').className = 'score wait';
+  document.getElementById('barA').style.width = '0%';
+  document.getElementById('barB').style.width = '0%';
+  document.getElementById('headA').className = '';
+  document.getElementById('headB').className = '';
+  document.getElementById('statusA').textContent = '等待中';
+  document.getElementById('statusB').textContent = '等待中';
+
+  // 触发后端测试
+  fetch('/start', { method: 'POST' }).then(() => {
+    connectSSE();
+  });
+}
+
+function connectSSE() {
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource('/events');
+
+  evtSource.onmessage = function(e) {
+    const d = JSON.parse(e.data);
+    if (d.type === 'eof') {
+      evtSource.close();
+      document.getElementById('btn').disabled = false;
+      document.getElementById('btn').textContent = '重新测试';
+      document.getElementById('info').textContent =
+        `完成! PASS:${pass} FAIL:${fail} REVIEW:${review}`;
+      document.getElementById('headA').className = '';
+      document.getElementById('headB').className = '';
+      document.getElementById('cardA').classList.remove('active');
+      document.getElementById('cardB').classList.remove('active');
+      return;
+    }
+    if (d.type === 'error') {
+      document.getElementById('info').textContent = '错误: ' + d.message;
+      document.getElementById('btn').disabled = false;
+      document.getElementById('btn').textContent = '重试';
+      return;
+    }
+
+    if (d.type === 'start') {
+      document.getElementById('info').textContent = `[${d.idx}/${d.total}] ${d.input}`;
+      document.getElementById('sTotal').textContent = `${d.idx}/${d.total}`;
+      document.getElementById('cardA').classList.add('active');
+      document.getElementById('cardB').classList.add('active');
+      document.getElementById('barA').style.width = '0%';
+      document.getElementById('barB').style.width = '0%';
+    }
+
+    if (d.type === 'judging') {
+      if (d.judge === 'A') {
+        document.getElementById('headA').className = 'head thinking';
+        document.getElementById('statusA').textContent = '审查中...';
+        document.getElementById('barA').style.width = '50%';
+      } else {
+        document.getElementById('headB').className = 'head thinking';
+        document.getElementById('statusB').textContent = '审查中...';
+        document.getElementById('barB').style.width = '50%';
+      }
+    }
+
+    if (d.type === 'judge_done') {
+      const elScore = document.getElementById('score' + d.judge);
+      const elHead = document.getElementById('head' + d.judge);
+      const elBar = document.getElementById('bar' + d.judge);
+      const elStatus = document.getElementById('status' + d.judge);
+      const isPass = d.verdict === 'PASS';
+
+      elScore.textContent = d.score;
+      elScore.className = 'score ' + (isPass ? 'pass' : 'fail');
+      elHead.className = 'head ' + (isPass ? 'pass' : 'fail');
+      elHead.style.animation = '';
+      elBar.style.width = '100%';
+      elStatus.textContent = d.verdict;
+    }
+
+    if (d.type === 'result') {
+      let cls = 'log-review';
+      if (d.result === 'PASS') { cls = 'log-pass'; pass++; }
+      else if (d.result === 'FAIL') { cls = 'log-fail'; fail++; }
+      else { review++; }
+
+      document.getElementById('sPass').textContent = pass;
+      document.getElementById('sFail').textContent = fail;
+      document.getElementById('sReview').textContent = review;
+
+      const el = document.createElement('div');
+      el.className = 'log-item';
+      el.innerHTML = `<span class="log-id">#${d.idx}</span>
+        <span class="${cls}">${d.result}</span>
+        <span style="color:#94a3b8">A:${d.score_a}分 B:${d.score_b}分</span>
+        <span style="color:#64748b;margin-left:auto">${d.input}</span>`;
+      const log = document.getElementById('logList');
+      if (log.firstChild && log.firstChild.tagName === 'DIV' && log.firstChild.style.color === 'rgb(100, 116, 139)')
+        log.innerHTML = '';
+      log.insertBefore(el, log.firstChild);
+
+      // 限 30 条
+      if (log.children.length > 30) log.removeChild(log.lastChild);
+
+      // 重置进度条
+      document.getElementById('barA').style.width = '0%';
+      document.getElementById('barB').style.width = '0%';
+    }
+  };
+
+  evtSource.onerror = function() {
+    document.getElementById('info').textContent = 'SSE 连接中断，请刷新重试';
+  };
+}
+
+// 自动触发（页面加载后自动开始）
+// setTimeout(() => startTest(), 500);
+</script>
+</body>
+</html>

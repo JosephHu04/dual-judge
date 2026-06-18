@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 环境变量 + API Key 配置（绝不能提交）
+.env
+裁判系统/**/judge_config.json
+
+# 裁判系统敏感数据
+裁判系统/双裁判引擎/review_queue.json
+
+# 对话记忆（含客人隐私）
+*.db
+conversations.json
+agent主体框架/conversations/
+
+# 虚拟环境
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
+
+# Chroma 向量数据库
+chroma_db/
+
+# 日志
+*.log
+
+# 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.swp
+*.swo
+
+# 构建
+dist/
+build/
+*.egg-info/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini

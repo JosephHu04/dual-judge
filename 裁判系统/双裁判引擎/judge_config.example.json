@@ -1,0 +1,13 @@
+{
+  "_comment": "复制此文件为 judge_config.json 并填写你的 API 密钥。也可以用环境变量代替（见 README）。",
+  "judge_a": {
+    "model": "deepseek-chat",
+    "api_key": "sk-your-deepseek-api-key-here",
+    "base_url": "https://api.deepseek.com"
+  },
+  "judge_b": {
+    "model": "qwen3:8b",
+    "api_key": "ollama",
+    "base_url": "http://localhost:11434/v1"
+  }
+}
