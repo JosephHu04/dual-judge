@@ -1,10 +1,53 @@
-# 酒店客房服务 Agent
+# 🏨 酒店客房服务 AI Agent
 
-基于 LangGraph 的 ReAct 模式智能体，LLM 自主决策，本地 Ollama 部署，零外部 API 依赖。
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
+[![LangGraph](https://img.shields.io/badge/LangGraph-ReAct-orange)](https://langchain.com)
+[![vLLM](https://img.shields.io/badge/vLLM-Qwen3--4b-green)](https://github.com/vllm-project/vllm)
+[![accuracy](https://img.shields.io/badge/准确率-100%25-brightgreen)](裁判系统/测试结果/)
+[![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+
+> 🏨 **五星级酒店客房服务智能体** — LLM 自主决策 + 双裁判质量评估，300 条测试关键类别 **100% 通过率**。
+>
+> 🏨 **Five-Star Hotel Room Service Agent** — LLM-powered autonomous agent with dual-judge quality evaluation, **100% pass rate** on 300 critical test cases.
+
+**中文** | [**English**](#english)
+
+基于 LangGraph ReAct 模式，LLM 自主理解客人意图、调用 8 个酒店服务工具、多轮追问补全信息。内置双裁判引擎（DeepSeek 严格审查 + 千问 3 体验视角）自动评估回复质量，分歧自动上报人工裁决。支持 Ollama / vLLM 本地部署，零云 API 依赖。
+
+## ✨ 核心亮点
+
+| 特性 | 说明 |
+|------|------|
+| 🤖 **ReAct Agent** | LangGraph 状态图编排，LLM 自主 Thought → Action → Observation 循环 |
+| ⚖️ **双裁判引擎** | 借鉴 FastChat MT-Bench，2 个 LLM 独立打分，分歧人工裁决 |
+| 📊 **可视化仪表盘** | SSE 实时推送，两个动画小人展示裁判评分过程 |
+| 🔧 **8 个酒店工具** | 配送、打扫、报修、洗衣、呼叫前台、叫醒、闹钟 |
+| 📝 **300 条测试** | 覆盖安全拒绝、时间异常、数量异常、越界拒绝、信息追问 |
+| 🗂️ **RAG 检索** | TF-IDF 纯 Python 实现，零外部依赖，检索酒店知识库 |
+| 🏠 **本地部署** | Ollama / vLLM，无需云 API，数据不出酒店内网 |
 
 ---
 
-## 一、项目结构
+<a name="english"></a>
+## 🏨 Hotel Room Service AI Agent
+
+> A production-grade LLM agent for five-star hotel room service. LangGraph ReAct pattern with dual-judge quality evaluation. **100% pass rate** on critical test categories.
+
+Built with LangGraph's ReAct (Reasoning + Acting) pattern, the agent autonomously understands guest intent, invokes 8 hotel service tools, and asks clarifying follow-up questions. An integrated dual-judge system (DeepSeek strict reviewer + Qwen3 user experience reviewer) automatically evaluates response quality — disagreements are saved for human adjudication. Runs entirely on local LLMs (Ollama/vLLM), zero cloud API dependency.
+
+### ✨ Highlights
+
+- 🤖 **ReAct Agent** — LangGraph state graph, LLM-driven Thought → Action → Observation loop
+- ⚖️ **Dual-Judge Engine** — Inspired by FastChat MT-Bench, two LLMs score independently
+- 📊 **Live Dashboard** — SSE real-time streaming with animated judge avatars
+- 🔧 **8 Hotel Tools** — Supplies, cleaning, maintenance, laundry, front desk, wake-up call, alarm
+- 📝 **300 Test Cases** — Covers safety, time/quantity anomalies, scope refusal, info probing
+- 🗂️ **TF-IDF RAG** — Pure Python, zero external deps, hotel knowledge base retrieval
+- 🏠 **Fully Local** — Ollama/vLLM compatible, no cloud API needed
+
+---
+
+## 一、项目结构 / Project Structure
 
 ```
 hotel agent/
