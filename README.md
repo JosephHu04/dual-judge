@@ -4,7 +4,7 @@
 [![LangGraph](https://img.shields.io/badge/LangGraph-ReAct-orange)](https://langchain.com)
 [![vLLM](https://img.shields.io/badge/vLLM-Qwen3--4b-green)](https://github.com/vllm-project/vllm)
 [![accuracy](https://img.shields.io/badge/准确率-100%25-brightgreen)](裁判系统/测试结果/)
-[![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-lightgrey)](#license)
 
 > 🏨 **五星级酒店客房服务智能体** — LLM 自主决策 + 双裁判质量评估，300 条测试关键类别 **100% 通过率**。
 >
