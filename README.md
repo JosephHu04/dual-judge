@@ -6,9 +6,9 @@
 [![accuracy](https://img.shields.io/badge/准确率-100%25-brightgreen)](裁判系统/测试结果/)
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)](#license)
 
-> 🏨 **五星级酒店客房服务智能体** — LLM 自主决策 + 双裁判质量评估，300 条测试关键类别 **100% 通过率**。
+> 🏨 **酒店客房服务智能体** — LLM 自主决策 + 双裁判质量评估，300 条测试关键类别 **100% 通过率**。
 >
-> 🏨 **Five-Star Hotel Room Service Agent** — LLM-powered autonomous agent with dual-judge quality evaluation, **100% pass rate** on 300 critical test cases.
+> 🏨 **Hotel Room Service Agent** — LLM-powered autonomous agent with dual-judge quality evaluation, **100% pass rate** on 300 critical test cases.
 
 **中文** | [**English**](#english)
 
@@ -31,7 +31,7 @@
 <a name="english"></a>
 ## 🏨 Hotel Room Service AI Agent
 
-> A production-grade LLM agent for five-star hotel room service. LangGraph ReAct pattern with dual-judge quality evaluation. **100% pass rate** on critical test categories.
+> A production-grade LLM agent for hotel room service. LangGraph ReAct pattern with dual-judge quality evaluation. **100% pass rate** on critical test categories.
 
 Built with LangGraph's ReAct (Reasoning + Acting) pattern, the agent autonomously understands guest intent, invokes 8 hotel service tools, and asks clarifying follow-up questions. An integrated dual-judge system (DeepSeek strict reviewer + Qwen3 user experience reviewer) automatically evaluates response quality — disagreements are saved for human adjudication. Runs entirely on local LLMs (Ollama/vLLM), zero cloud API dependency.
 
