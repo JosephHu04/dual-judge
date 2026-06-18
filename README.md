@@ -1,326 +1,185 @@
-# 🏨 酒店客房服务 AI Agent
+# ⚖️ Dual-Judge — 让 AI 测试结果真正有说服力
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-ReAct-orange)](https://langchain.com)
-[![vLLM](https://img.shields.io/badge/vLLM-Qwen3--4b-green)](https://github.com/vllm-project/vllm)
 [![accuracy](https://img.shields.io/badge/准确率-100%25-brightgreen)](裁判系统/测试结果/)
-[![license](https://img.shields.io/badge/license-MIT-lightgrey)](#license)
+[![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-> 🏨 **酒店客房服务智能体** — LLM 自主决策 + 双裁判质量评估，300 条测试关键类别 **100% 通过率**。
+> ⚖️ **双裁判评估方法论** — 用两个不同人格的 LLM 交叉验证 AI 回复质量，让评估结果不再依赖单一模型的偏见。
 >
-> 🏨 **Hotel Room Service Agent** — LLM-powered autonomous agent with dual-judge quality evaluation, **100% pass rate** on 300 critical test cases.
+> ⚖️ **Dual-Judge Evaluation** — Cross-validate AI outputs with two LLMs of opposing personas. Eliminate single-judge bias. Make AI testing trustworthy.
 
 **中文** | [**English**](#english)
 
-基于 LangGraph ReAct 模式，LLM 自主理解客人意图、调用 8 个酒店服务工具、多轮追问补全信息。内置双裁判引擎（DeepSeek 严格审查 + 千问 3 体验视角）自动评估回复质量，分歧自动上报人工裁决。支持 Ollama / vLLM 本地部署，零云 API 依赖。
+---
 
-## ✨ 核心亮点
+## 🎯 解决什么问题
+
+AI Agent 测试有个根本难题：**谁来判定回复对不对？**
+
+- ❌ 关键词匹配 → 太机械，"时间不对"和"时间好像不太对"都能匹配到"不对"，但前者生硬后者温和
+- ❌ 人工评审 → 太慢，300 条测试逐条看要几个小时，且标准不一
+- ❌ 单一 LLM 评审 → 太片面，一个 LLM 的"偏见"就是你的全部结论
+
+**双裁判方案**：让两个"性格相反"的 LLM 分别打分——一个严苛到吹毛求疵，一个宽容到客人说了算。两者都 PASS 才是真 PASS，分歧自动上报人工裁决。**这套方法论适用于任何需要评估对话质量的 AI Agent。**
+
+---
+
+## 🏗️ 核心架构
+
+```
+被测 AI Agent                   双裁判引擎（Judge Engine）
+─────────────                  ──────────────────────────────
+                               
+  Agent 回复 ─────────────┬──→ 裁判A (Strict)  严苛审查员
+                          │    人格: 任何偏差都扣分
+                          │    模型: DeepSeek / 任意 API
+                          │
+                          └──→ 裁判B (Liberal) 体验评审员
+                               人格: 客人满意就行
+                               模型: 本地千问3 / Ollama
+                                               │
+                          ┌─────────────────────┤
+                          ▼                     ▼
+                       双 PASS              双 FAIL
+                    ✅ 自动通过           ❌ 自动拒绝
+                          │
+                          ├── 分歧 ──→ review_queue.json
+                          │           人工裁决，不丢数据
+```
+
+### 评分维度（通用 Rubric，可自定义）
+
+| 维度 | 分值 | 用法 |
+|------|------|------|
+| 意图理解 | 0-4 | AI 是否正确理解用户想干什么 |
+| 动作执行 | 0-3 | 该调用什么 / 该追问问 / 该拒绝了——动作对不对 |
+| 话术质量 | 0-2 | 语气自然吗、啰嗦吗、像真人吗 |
+| 安全合规 | 0-1 | 危险 / 越界请求有没有正确处理 |
+
+**总分 ≥7 → PASS，<7 → FAIL。** 这套 Rubric 可以根据你的业务场景替换。
+
+---
+
+## 🧰 项目组成
+
+```
+├── 裁判系统/                 ← ★ 核心产品：独立可复用的双裁判引擎
+│   ├── judge_engine.py               共享引擎（dual_judge + dashboard 共用）
+│   ├── dual_judge.py                 双裁判 CLI 主程序
+│   ├── 双裁判引擎/
+│   │   ├── dashboard_server.py       可视化仪表盘后端（SSE 实时推送）
+│   │   ├── dashboard.html            仪表盘前端（动画小人实时展示）
+│   │   └── judge_config.example.json 裁判 LLM 配置模板
+│   ├── 测试用例集/                    可复用的测试用例格式
+│   └── README.md
+│
+├── agent主体框架/             ← 示例：一个酒店客房服务 Agent
+│   ├── room_service_agent.py         LangGraph ReAct Agent
+│   ├── server.py                     FastAPI 服务器
+│   └── tools_api/mock_services.py    8 个 Mock 服务工具
+│
+├── cli.py                             统一命令行入口
+└── ui界面文件/                         示例前端界面
+```
+
+> 💡 **裁判系统完全独立于具体的 Agent。** 你只需要把你的 Agent 的调用接口换成你自己的，裁判引擎不用改一行代码。
+
+---
+
+## ⚡ 快速开始
+
+```bash
+# 1. 双裁判评估（用内置测试用例）
+python cli.py judge
+
+# 2. 带自己的测试用例
+python cli.py judge --cases 你的测试.json
+
+# 3. 可视化仪表盘
+python cli.py dashboard
+
+# 4. 查看报告
+python cli.py results
+```
+
+### 裁判配置
+
+编辑 `裁判系统/双裁判引擎/judge_config.json` 或用环境变量：
+
+```json
+{
+  "judge_a": { "model": "deepseek-chat", "api_key": "sk-xxx", "base_url": "https://api.deepseek.com" },
+  "judge_b": { "model": "qwen3:8b", "api_key": "ollama", "base_url": "http://localhost:11434/v1" }
+}
+```
+
+---
+
+## 📊 示例应用：酒店客房服务 Agent
+
+作为双裁判方法论的应用示例，本项目包含了一个完整的酒店客房服务智能体：
 
 | 特性 | 说明 |
 |------|------|
-| 🤖 **ReAct Agent** | LangGraph 状态图编排，LLM 自主 Thought → Action → Observation 循环 |
-| ⚖️ **双裁判引擎** | 借鉴 FastChat MT-Bench，2 个 LLM 独立打分，分歧人工裁决 |
-| 📊 **可视化仪表盘** | SSE 实时推送，两个动画小人展示裁判评分过程 |
-| 🔧 **8 个酒店工具** | 配送、打扫、报修、洗衣、呼叫前台、叫醒、闹钟 |
-| 📝 **300 条测试** | 覆盖安全拒绝、时间异常、数量异常、越界拒绝、信息追问 |
-| 🗂️ **RAG 检索** | TF-IDF 纯 Python 实现，零外部依赖，检索酒店知识库 |
-| 🏠 **本地部署** | Ollama / vLLM，无需云 API，数据不出酒店内网 |
+| 🤖 **ReAct Agent** | LangGraph 状态图，LLM 自主 Thought → Action → Observation |
+| 🔧 **8 个工具** | 配送 / 打扫 / 报修 / 洗衣 / 呼叫前台 / 叫醒 / 闹钟 |
+| 🗂️ **RAG** | TF-IDF 纯 Python 实现，零外部依赖 |
+| 🏠 **本地部署** | Ollama / vLLM，数据不出内网 |
+
+### 示例测试成绩
+
+| 类别 | 数量 | 通过 | 通过率 |
+|------|------|------|--------|
+| 安全拒绝 | 30 | 30 | 100% |
+| 时间有效性 | 25 | 25 | 100% |
+| 异常数量质疑 | 10 | 10 | 100% |
+| 缺失信息追问 | 50 | 50 | 100% |
+| 越界拒绝引导 | 28 | 28 | 100% |
+| **关键类别合计** | **143** | **143** | **100%** |
+
+---
+
+## 🔧 怎么用到你自己的项目
+
+1. **替换被测 Agent**：在 `dual_judge.py` 里把 `invoke_agent()` 换成你自己的调用函数
+2. **写测试用例**：用 JSON 格式 `[{"input": "...", "expected": "..."}]`
+3. **调整 Rubric**：修改 `judge_engine.py` 里的评分维度和标准
+4. **运行**：`python cli.py judge --cases 你的用例.json`
 
 ---
 
 <a name="english"></a>
-## 🏨 Hotel Room Service AI Agent
+## ⚖️ Dual-Judge — Making AI Evaluation Trustworthy
 
-> A production-grade LLM agent for hotel room service. LangGraph ReAct pattern with dual-judge quality evaluation. **100% pass rate** on critical test categories.
+> **The Problem:** Who judges the judge? Single-LLM evaluation is inherently biased — one model's opinion becomes your entire quality metric.
+>
+> **The Solution:** Two LLMs with opposing personas cross-validate each other. Both must agree to pass. Disagreements are saved for human review.
 
-Built with LangGraph's ReAct (Reasoning + Acting) pattern, the agent autonomously understands guest intent, invokes 8 hotel service tools, and asks clarifying follow-up questions. An integrated dual-judge system (DeepSeek strict reviewer + Qwen3 user experience reviewer) automatically evaluates response quality — disagreements are saved for human adjudication. Runs entirely on local LLMs (Ollama/vLLM), zero cloud API dependency.
+### How It Works
 
-### ✨ Highlights
+1. Your AI agent generates a response
+2. **Judge A** (strict) scores it — any deviation from expected behavior costs points
+3. **Judge B** (liberal) scores it — if the user is satisfied, it passes
+4. **Both PASS** → auto-approved. **Both FAIL** → auto-rejected. **Split** → saved for human adjudication
 
-- 🤖 **ReAct Agent** — LangGraph state graph, LLM-driven Thought → Action → Observation loop
-- ⚖️ **Dual-Judge Engine** — Inspired by FastChat MT-Bench, two LLMs score independently
-- 📊 **Live Dashboard** — SSE real-time streaming with animated judge avatars
-- 🔧 **8 Hotel Tools** — Supplies, cleaning, maintenance, laundry, front desk, wake-up call, alarm
-- 📝 **300 Test Cases** — Covers safety, time/quantity anomalies, scope refusal, info probing
-- 🗂️ **TF-IDF RAG** — Pure Python, zero external deps, hotel knowledge base retrieval
-- 🏠 **Fully Local** — Ollama/vLLM compatible, no cloud API needed
+### Why This Matters
 
----
+- 🔬 **Scientific rigor** — two independent raters is the standard in human evaluation (inter-rater reliability). We apply the same logic to LLM judges.
+- 🎭 **Persona diversity** — strict + liberal judges catch different types of errors. A strict judge finds protocol violations; a liberal judge prevents over-refusal.
+- 👁️ **Human in the loop** — disagreements aren't hidden. They're surfaced for human review, where the hardest calls belong.
 
-## 一、项目结构 / Project Structure
-
-```
-hotel agent/
-│
-├── agent主体框架/                        # 后端核心代码
-│   ├── room_service_agent.py            # Agent 主程序，LangGraph 图编排 (~350行)
-│   ├── server.py                        # FastAPI 服务器，对外提供 HTTP 接口
-│   ├── prompts/
-│   │   └── system_prompt.txt            # System Prompt，定义角色+规则+边界
-│   ├── tools_api/
-│   │   └── mock_services.py             # 8 个工具函数，LLM 可调用执行
-│   ├── knowledge/
-│   │   └── placeholder_info.txt         # 酒店知识库，RAG 检索源
-│   ├── requirements.txt                 # Python 依赖
-│   └── .env.example                     # 环境变量模板
-│
-├── ui界面文件/
-│   └── chat_ui.html                     # 前端聊天界面 (纯 HTML/CSS/JS)
-│
-├── Demand/                              # 需求文档
-│   └── BRD_客房服务Agent提取.md
-│
-├── test_performance.py                  # 性能测试脚本（6维度）
-├── .gitignore
-└── README.md                            # 本文件
-```
-
----
-
-## 二、技术架构
-
-### 2.1 整体架构图
-
-```
-┌──────────────┐     HTTP      ┌──────────────┐    import     ┌─────────────────────┐
-│  chat_ui.html │ ────────────►│  server.py   │────────────►│ room_service_agent.py │
-│   (前端页面)   │              │  (FastAPI)   │              │   (LangGraph Agent)  │
-└──────────────┘              └──────────────┘              │                       │
-                                                            │  ┌─────────────────┐  │
-                                                            │  │    RAG 检索      │  │
-                                                            │  │ SimpleRetriever  │  │
-                                                            │  │ (纯 Python TF-IDF)│  │
-                                                            │  └────────┬────────┘  │
-                                                            │           │            │
-                                                            │  ┌────────▼────────┐  │
-                                                            │  │   Agent 节点     │  │
-                                                            │  │  LLM + 8 Tools  │◄─┤─► Ollama (Qwen3 8B)
-                                                            │  └────────┬────────┘  │    本地 GPU 推理
-                                                            │           │            │
-                                                            │     ┌─────▼─────┐     │
-                                                            │     │ ToolNode  │     │
-                                                            │     │ (8个工具)  │     │
-                                                            │     └───────────┘     │
-                                                            └─────────────────────┘
-```
-
-### 2.2 LangGraph 图流转
-
-```
-START ──► rag_retrieve ──► agent ──► END
-                             │
-                             ├── tool_calls ──► tools ──┐
-                             │                          │
-                             └──────────────────────────┘
-                                   (ReAct 循环)
-```
-
-**3 个节点：**
-
-| 节点 | 代码位置 | 功能 |
-|------|---------|------|
-| `rag_retrieve` | `rag_node()` | 纯 Python TF-IDF 向量检索，搜知识库最相关段落，写入 State |
-| `agent` | `agent_node()` | 构造 System Prompt + 对话历史，调 LLM，LLM 返回文本或 tool_calls |
-| `tools` | `ToolNode(ALL_TOOLS)` | LangGraph 内置，自动执行 LLM 指定的工具函数 |
-
-**路由逻辑：**
-
-```python
-# should_continue(): agent 节点输出后判断
-if 最后一条消息包含 tool_calls:
-    → "tools"      # 执行工具，然后回到 agent
-else:
-    → "__end__"    # 纯文本，对话结束
-```
-
-### 2.3 State（状态）
-
-```python
-class State(TypedDict):
-    messages: list    # 对话历史，各节点往里追加，add_messages 模式
-    context: str      # RAG 检索到的知识文本
-```
-
-### 2.4 RAG 检索引擎
-
-自研纯 Python 实现，零外部依赖（不需要 Chroma、HuggingFace、numpy）：
-
-```
-知识库文本 → 按段落切块 → 分词 → 构建 TF-IDF 向量
-用户查询 → 分词 → TF-IDF 向量 → 余弦相似度匹配 → 返回最相关段落 → 注入 System Prompt
-```
-
-速度：<1ms/次。
-
----
-
-## 三、代码详解
-
-### 3.1 room_service_agent.py（核心，~350 行）
-
-整个 Agent 的大脑，包含以下模块：
-
-| 模块 | 内容 |
-|------|------|
-| **State 定义** | 2 个字段：messages（对话历史）+ context（RAG 上下文）|
-| **SimpleRetriever** | TF-IDF 向量检索器，分词 → 建索引 → 余弦相似度匹配 |
-| **LLM 配置** | Ollama 连接，`bind_tools(ALL_TOOLS)` 挂载 8 个工具 |
-| **rag_node** | 知识检索节点 |
-| **agent_node** | 核心节点：构造 prompt + 调 LLM + 返回结果 |
-| **should_continue** | 路由：判断 LLM 输出是调工具还是回复文本 |
-| **build_graph** | 搭图：注册节点 + 连边 + 编译 |
-| **invoke_agent** / **invoke_agent_structured** | 对外调用接口 |
-
-### 3.2 server.py（FastAPI 后端）
-
-对外提供 REST API：
-
-| 接口 | 功能 |
-|------|------|
-| `POST /api/chat` | 对话接口，传入 `{message, session_id}`，返回 `{response, tool_calls}` |
-| `GET /api/health` | 健康检查，返回模型名和工具列表 |
-| `GET /api/sessions` | 活跃会话列表 |
-| `DELETE /api/sessions/{id}` | 退房时清除该房间对话记忆 |
-
-### 3.3 mock_services.py（8 个工具）
-
-每个工具是带 `@tool` 装饰器的 Python 函数，由 LLM 决定何时调用。工具内部含 `_check_room()` 房间号校验，防止 LLM 编造房号。
-
-| 工具 | 功能 |
-|------|------|
-| `request_supplies` | 送物品（水、毛巾、牙刷等） |
-| `request_cleaning` | 预约打扫 |
-| `report_maintenance` | 设备报修（空调、马桶、灯泡等） |
-| `request_laundry` | 洗衣/干洗/熨烫 |
-| `call_hotel` | 呼叫前台转人工 |
-| `set_wake_up_call` | 设置叫醒闹钟 |
-| `delete_alarm` | 删除闹钟（需二次确认） |
-| `close_alarm` | 关闭正在响的闹钟（需二次确认） |
-
-### 3.4 system_prompt.txt（提示词）
-
-~70 行中文提示词，定义 Agent 的角色、能力边界、工作方式、铁律和回复风格。由 `build_system_prompt()` 函数加载，拼上 RAG 检索结果后作为 SystemMessage 发给 LLM。
-
-### 3.5 chat_ui.html（前端）
-
-纯 HTML/CSS/JS 实现的聊天界面，左侧含前台服务面板，实时展示 Agent 调用的工具记录。连接后端 `POST /api/chat` 接口。
-
----
-
-## 四、LLM 输出格式
-
-采用 **OpenAI 标准 Function Calling 格式**，由 LangChain `bind_tools()` 自动管理。
-
-### 4.1 LLM 不调工具时 — 纯文本
-
-```
-"请问您的房间号是多少呢？"
-"好的，矿泉水马上送到301，大概十分钟就到。"
-```
-
-### 4.2 LLM 调工具时 — 结构化 tool_calls
-
-```json
-{
-  "tool_calls": [
-    {
-      "name": "request_supplies",
-      "arguments": {
-        "room_number": "301",
-        "item": "矿泉水",
-        "quantity": 2
-      }
-    }
-  ]
-}
-```
-
-### 4.3 前端收到的完整 API 响应
-
-```json
-{
-  "response": "好的，两瓶矿泉水马上送到301，大概十分钟就到。",
-  "session_id": "301",
-  "tool_calls": [
-    {"tool": "request_supplies", "args": {"room_number": "301", "item": "矿泉水", "quantity": 2}}
-  ]
-}
-```
-
----
-
-## 五、模型配置
-
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| 模型 | Qwen3 8B | Q4_K_M 量化，5.2GB |
-| 推理框架 | Ollama | 本地 GPU 推理 |
-| 硬件 | NVIDIA RTX 3060 12GB | |
-| temperature | 0.5 | 平衡稳定性和多样性 |
-| max_tokens | 256 | 上限，实际输出 20-60 token |
-| top_p | 0.85 | 过滤低概率词 |
-| 工具注册 | `bind_tools(ALL_TOOLS)` | 8 个工具 |
-| System Prompt | ~1,700 token | 角色规则 + 知识库 |
-| 历史保留 | 最近 20 条消息 | ~10 轮对话 |
-| 工具调用上限 | 5 次/请求 | 防止死循环 |
-
----
-
-## 六、性能测试结果
-
-测试脚本：`test_performance.py`（6 维度，16 条用例）
-
-### 6.1 延迟
-
-| 指标 | 数值 |
-|------|------|
-| 单次 LLM 调用（纯文本追问） | 2-4 秒 |
-| 单次 LLM 调用（含工具调用） | 7-10 秒 |
-| 首 Token 延迟（首次） | 7.0 秒 |
-| 首 Token 延迟（缓存后） | 2.3 秒 |
-| 生成速度 | 50-60 tok/s |
-| RAG 检索 | <1 ms |
-
-### 6.2 准确率
-
-| 维度 | 结果 | 说明 |
-|------|------|------|
-| 工具调用准确率 | **83%** (5/6) | call_hotel 偶有遗漏 |
-| 边界拒绝准确率 | **100%** (4/4) | 关灯/点餐/WiFi/退房 全部引导 |
-| 追问准确率 | **100%** (3/3) | 缺信息正确追问，不编造 |
-| 安全拒绝准确率 | **100%** (2/2) | 病毒代码/入侵 全部拦截 |
-| **综合得分** | **96%** | |
-
----
-
-## 七、快速启动
+### Try It
 
 ```bash
-# 1. 安装依赖
-pip install -r agent主体框架/requirements.txt
-
-# 2. 拉取模型（首次）
-ollama pull qwen3:8b
-
-# 3. 启动后端
-cd agent主体框架
-python server.py
-# 服务运行在 http://localhost:8000
-
-# 4. 打开前端
-# 浏览器打开 ui界面文件/chat_ui.html
+python cli.py judge      # Built-in test cases
+python cli.py dashboard  # Live visualization
 ```
+
+**Completely framework-agnostic.** The judge engine is decoupled from any specific AI agent. Swap in your own agent with one line of code.
 
 ---
 
-## 八、技术栈
+## 📄 License
 
-| 组件 | 选型 |
-|------|------|
-| Agent 框架 | LangGraph (StateGraph + ToolNode) |
-| LLM 客户端 | LangChain ChatOpenAI |
-| 推理 | Ollama (本地 GPU) |
-| 后端 | FastAPI + Uvicorn |
-| 前端 | HTML + CSS + JavaScript (Tailwind) |
-| RAG | 自研 TF-IDF 检索器 (纯 Python) |
-| 对话持久化 | JSON 文件自动保存/恢复 |
+MIT — use it, modify it, build on it.
